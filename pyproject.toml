@@ -1,0 +1,35 @@
+[project]
+name = "delphi-llms"
+version = "0.1.0"
+description = "Delphi experiments with local open-source LLMs"
+authors = [
+    { name = "Daniel Amaral", email = "silva.daniel86@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "agno>=2.4.8",
+    "httpx>=0.28.1",
+    "pandas>=3.0.0",
+    "pydantic>=2.12.5",
+    "pyyaml>=6.0.3",
+    "typer>=0.23.0",
+]
+
+[project.scripts]
+delphi-llms = "delphi_llms.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.9.30,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.15.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100

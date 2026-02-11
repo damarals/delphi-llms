@@ -1,0 +1,2 @@
+"""Core Delphi logic."""
+

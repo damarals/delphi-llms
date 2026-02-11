@@ -1,0 +1,13 @@
+model: qwen3-4b
+n_max: 10
+experts:
+  count: 5
+  seeds: [11, 22, 33, 44, 55]
+mode: standard
+dataset_paths:
+  raw_dir: data/raw
+  baseline_file: data/raw/human_baseline.csv
+outputs:
+  run_dir: runs/latest
+smoke:
+  limit: 5

@@ -1,0 +1,9 @@
+categories:
+  - include
+  - maybe
+  - exclude
+
+rating_to_category:
+  include: [7, 9]
+  maybe: [4, 6]
+  exclude: [1, 3]
