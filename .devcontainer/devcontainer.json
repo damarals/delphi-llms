@@ -1,0 +1,29 @@
+{
+  "name": "delphi-llms",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "runArgs": [
+    "--gpus=all"
+  ],
+  "containerEnv": {
+    "OLLAMA_HOST": "http://127.0.0.1:11434",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "forwardPorts": [11434],
+  "postCreateCommand": "uv --version && ollama --version",
+  "postStartCommand": "bash .devcontainer/scripts/start-ollama.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "tamasfe.even-better-toml"
+      ]
+    }
+  }
+}
+
