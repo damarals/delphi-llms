@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspaces/delphi-llms:cached
+    command: sleep infinity
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "11434:11434"
+    command: serve
+    # Enable GPU if available by uncommenting the next line:
+    # gpus: all
+
+volumes:
+  ollama-data:
+
