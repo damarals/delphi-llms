@@ -6,7 +6,12 @@ experts:
 mode: standard
 dataset_paths:
   raw_dir: data/raw
-  baseline_file: data/raw/human_baseline.csv
+  round1_results: data/raw/Dataset_Delphi 1st round Results.xlsx
+  round2_results: data/raw/Dataset_Delphi 2nd round Results.xlsx
+  round1_survey: data/raw/Dataset_Delphi 1st round Survey Form.xlsx
+  round2_survey: data/raw/Dataset_Delphi 2nd round Survey Form.xlsx
+  summary_instructions_pdf: data/raw/Dataset_Delphi 1st round Summary & 2nd round Instructions.pdf
+  final_checklist_template: data/raw/Dataset_Final Checklist Template.xlsx
 outputs:
   run_dir: runs/latest
 smoke:
