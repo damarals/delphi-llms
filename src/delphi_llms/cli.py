@@ -5,10 +5,18 @@ from datetime import UTC, datetime
 
 import typer
 
-from delphi_llms.agents.ollama import call_ollama_expert, ensure_model_available
+from delphi_llms.agents.ollama import (
+    ask_ollama_clarification_question,
+    call_ollama_expert,
+    call_ollama_expert_with_clarification,
+    call_ollama_facilitator,
+    ensure_model_available,
+)
 from delphi_llms.config import load_yaml
 from delphi_llms.data.loader import parse_round_results_xlsx
-from delphi_llms.delphi.engine import run_standard_delphi
+from delphi_llms.delphi.engine import run_recursive_delphi, run_standard_delphi
+from delphi_llms.eval.compare import evaluate_run_against_human, load_latest_run_dir
+from delphi_llms.eval.export_sqlite import export_latest_run_to_sqlite
 
 
 app = typer.Typer(help="Delphi LLM experiments CLI.")
@@ -75,8 +83,8 @@ def experiment_run(config: Path = typer.Option(..., exists=False)) -> None:
         _ensure_config_exists(config)
         config_data = load_yaml(config)
         mode = str(config_data.get("mode", "standard")).strip().lower()
-        if mode != "standard":
-            raise typer.BadParameter("Only mode=standard is implemented in this increment.")
+        if mode not in {"standard", "recursive"}:
+            raise typer.BadParameter("mode must be one of: standard, recursive")
 
         model = str(config_data.get("model", "")).strip()
         if not model:
@@ -105,19 +113,44 @@ def experiment_run(config: Path = typer.Option(..., exists=False)) -> None:
         ollama_host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
         try:
             ensure_model_available(ollama_host=ollama_host, model=model)
+            facilitator_model = str(config_data.get("facilitator", {}).get("model", model)).strip()
+            if mode == "recursive":
+                ensure_model_available(ollama_host=ollama_host, model=facilitator_model)
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
 
-        run_data = run_standard_delphi(
-            items=items,
-            expert_seeds=expert_seeds,
-            n_max=n_max,
-            call_expert=lambda **kwargs: call_ollama_expert(  # noqa: E731
-                model=model,
-                ollama_host=ollama_host,
-                **kwargs,
-            ),
-        )
+        if mode == "standard":
+            run_data = run_standard_delphi(
+                items=items,
+                expert_seeds=expert_seeds,
+                n_max=n_max,
+                call_expert=lambda **kwargs: call_ollama_expert(  # noqa: E731
+                    model=model,
+                    ollama_host=ollama_host,
+                    **kwargs,
+                ),
+            )
+        else:
+            run_data = run_recursive_delphi(
+                items=items,
+                expert_seeds=expert_seeds,
+                n_max=n_max,
+                ask_expert_clarification=lambda **kwargs: ask_ollama_clarification_question(  # noqa: E731
+                    model=model,
+                    ollama_host=ollama_host,
+                    **kwargs,
+                ),
+                call_facilitator=lambda **kwargs: call_ollama_facilitator(  # noqa: E731
+                    model=facilitator_model,
+                    ollama_host=ollama_host,
+                    **kwargs,
+                ),
+                call_expert_with_clarification=lambda **kwargs: call_ollama_expert_with_clarification(  # noqa: E731
+                    model=model,
+                    ollama_host=ollama_host,
+                    **kwargs,
+                ),
+            )
 
         run_dir = Path(config_data.get("outputs", {}).get("run_dir", "runs/latest"))
         timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -143,11 +176,39 @@ def experiment_run(config: Path = typer.Option(..., exists=False)) -> None:
 
 @evaluate_app.command("run")
 def evaluate_run(config: Path = typer.Option(..., exists=False)) -> None:
-    _ensure_config_exists(config)
-    typer.echo(f"evaluation run stub: {config}")
+    try:
+        _ensure_config_exists(config)
+        config_data = load_yaml(config)
+        run_dir_base = Path(config_data.get("outputs", {}).get("run_dir", "runs/latest"))
+        round2_path = _required_path(config_data, "dataset_paths.round2_results")
+        if not round2_path.exists():
+            raise typer.BadParameter(f"Round 2 results file not found: {round2_path}")
+
+        run_dir = load_latest_run_dir(run_dir_base)
+        result = evaluate_run_against_human(run_dir=run_dir, round2_results_path=round2_path)
+
+        summary_path = run_dir / "evaluation_summary.json"
+        items_path = run_dir / "evaluation_items.csv"
+        summary_path.write_text(json.dumps(result["summary"], ensure_ascii=True, indent=2), encoding="utf-8")
+        result["items"].to_csv(items_path, index=False)
+
+        typer.echo(f"evaluation complete: {run_dir}")
+        typer.echo(f"summary: {summary_path}")
+        typer.echo(f"items: {items_path}")
+    except (typer.BadParameter, FileNotFoundError) as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=1) from exc
 
 
 @export_app.command("sqlite")
 def export_sqlite(config: Path = typer.Option(..., exists=False)) -> None:
-    _ensure_config_exists(config)
-    typer.echo(f"sqlite export stub: {config}")
+    try:
+        _ensure_config_exists(config)
+        config_data = load_yaml(config)
+        run_dir_base = Path(config_data.get("outputs", {}).get("run_dir", "runs/latest"))
+        sqlite_path = Path(config_data.get("outputs", {}).get("sqlite_path", "runs/latest/results.sqlite"))
+        exported = export_latest_run_to_sqlite(base_run_dir=run_dir_base, sqlite_path=sqlite_path)
+        typer.echo(f"sqlite export complete: {exported}")
+    except (typer.BadParameter, FileNotFoundError) as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=1) from exc

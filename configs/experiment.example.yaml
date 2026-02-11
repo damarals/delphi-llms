@@ -1,4 +1,6 @@
 model: qwen3-4b
+facilitator:
+  model: qwen3-4b
 n_max: 10
 experts:
   count: 5
@@ -14,5 +16,6 @@ dataset_paths:
   final_checklist_template: data/raw/Dataset_Final Checklist Template.xlsx
 outputs:
   run_dir: runs/latest
+  sqlite_path: runs/latest/results.sqlite
 smoke:
   limit: 5
